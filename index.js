@@ -181,36 +181,6 @@ process.on('SIGTERM', () => {
 process.on('unhandledRejection', (err) => {
     logger.error('Unhandled rejection:', err.message);
 });
-
-Hide quoted text
-
-On Thu, 12 Mar, 2026, 3:11 pm Ethical Hacking Rishu, <rishikahar9329239429@gmail.com> wrote:
-# ============================================================
-# GRIH SANSAR — REE Bot Environment Variables
-# Copy this to .env and fill in your actual values
-# ============================================================
-
-# ── Required ──
-OPENROUTER_API_KEY=sk-or-v1-your-key-here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key-here
-
-# ── Optional ──
-# WhatsApp group JID where order notifications are sent
-OWNER_GROUP_JID=120363xxxxxx@g.us
-
-# Render hostname (auto-set by Render, but you can set manually)
-RENDER_EXTERNAL_HOSTNAME=your-app.onrender.com
-
-# AI model (defaults to Llama 3.3 70B free tier — best for Hindi+English chat)
-AI_MODEL=meta-llama/llama-3.3-70b-instruct:free
-
-# Fallback model if primary fails (defaults to Llama 4 Maverick free)
-AI_MODEL_FALLBACK=meta-llama/llama-4-maverick:free
-
-# Server port (defaults to 10000)
-PORT=10000
-
 # Enable debug logging
 DEBUG=false
 

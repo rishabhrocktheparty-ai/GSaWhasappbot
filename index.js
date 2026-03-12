@@ -181,20 +181,3 @@ process.on('SIGTERM', () => {
 process.on('unhandledRejection', (err) => {
     logger.error('Unhandled rejection:', err.message);
 });
-# Enable debug logging
-DEBUG=false
-
-# ── Outreach System ──
-# Enable/disable proactive messaging (set to true when ready)
-OUTREACH_ENABLED=false
-
-# Admin token for /admin/* endpoints (set a random secure string)
-ADMIN_TOKEN=your-secret-admin-token-here
-
-# Daily message limits
-OUTREACH_MIN_DAILY=100
-OUTREACH_MAX_DAILY=200
-
-# Sending hours in IST (24-hour format)
-OUTREACH_START_HOUR=9
-OUTREACH_END_HOUR=20

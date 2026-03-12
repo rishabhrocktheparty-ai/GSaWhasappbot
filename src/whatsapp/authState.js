@@ -95,4 +95,3 @@ async function useSupabaseAuthState() {
 }
 
 module.exports = { useSupabaseAuthState };
-

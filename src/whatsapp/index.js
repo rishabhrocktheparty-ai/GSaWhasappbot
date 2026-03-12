@@ -4,6 +4,7 @@ const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion, Brow
 const pino = require('pino');
 const { useSupabaseAuthState } = require('./authState');
 const { getAIResponse, trackActivity, clearChatHistory } = require('../ai/chat');
+const { markOutreachReplied, startDailyOutreach, stopOutreach } = require('../outreach/scheduler');
 const logger = require('../utils/logger');
 
 // ── Message processing queue (prevents race conditions) ──
@@ -29,6 +30,9 @@ async function handleMessage(sock, msg, textMessage, pushName, userId) {
     try {
         // Track user activity for memory cleanup
         trackActivity(userId);
+
+        // Track if this is a reply to an outreach message
+        await markOutreachReplied(userId);
 
         // Admin commands (only work in groups)
         if (textMessage === '!getid') {
@@ -154,6 +158,9 @@ async function connectToWhatsApp() {
                 botState.status = 'Reconnecting...';
                 botState.qr = '';
 
+                // Stop outreach until reconnected
+                stopOutreach();
+
                 if (statusCode === DisconnectReason.loggedOut) {
                     logger.warn('Logged out — clearing session and restarting.');
                     clearSession().then(() => {
@@ -171,6 +178,9 @@ async function connectToWhatsApp() {
                 botState.status = 'Ready';
                 botState.connectedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
                 logger.info('✅ REE is connected and ready!');
+
+                // Start outreach system
+                startDailyOutreach(sock);
             }
         });
 

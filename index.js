@@ -10,6 +10,9 @@ const pino = require('pino');
 const { connectToWhatsApp } = require('./src/whatsapp');
 const { validateEnv } = require('./src/utils/env');
 const logger = require('./src/utils/logger');
+const { parseCSV, importCustomers, getCustomerCount } = require('./src/outreach/snapbizz');
+const { runDailyOutreach } = require('./src/outreach/scheduler');
+const { getOutreachStats } = require('./src/outreach/sender');
 
 // ── Validate environment before anything else ──
 validateEnv();
@@ -70,6 +73,90 @@ app.get('/health', (req, res) => {
     });
 });
 
+// ══════════════════════════════════════
+// ADMIN ENDPOINTS (protected by ADMIN_TOKEN)
+// ══════════════════════════════════════
+
+// Middleware: simple token auth
+function adminAuth(req, res, next) {
+    const token = process.env.ADMIN_TOKEN;
+    if (!token) return res.status(503).json({ error: 'ADMIN_TOKEN not set on server' });
+
+    const provided = req.headers['x-admin-token'] || req.query.token;
+    if (provided !== token) return res.status(401).json({ error: 'Unauthorized' });
+    next();
+}
+
+// Parse JSON and text bodies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.text({ type: 'text/csv', limit: '10mb' }));
+
+// POST /admin/upload-customers — Upload Snap Bizz CSV data
+// Send CSV text in request body with Content-Type: text/csv
+// Or send JSON array with Content-Type: application/json
+app.post('/admin/upload-customers', adminAuth, async (req, res) => {
+    try {
+        let customers, parseErrors;
+
+        if (typeof req.body === 'string') {
+            // CSV text
+            const result = parseCSV(req.body);
+            customers = result.customers;
+            parseErrors = result.errors;
+        } else if (Array.isArray(req.body)) {
+            // Direct JSON array
+            customers = req.body;
+            parseErrors = [];
+        } else {
+            return res.status(400).json({ error: 'Send CSV text (Content-Type: text/csv) or JSON array (Content-Type: application/json)' });
+        }
+
+        if (customers.length === 0) {
+            return res.status(400).json({ error: 'No valid customers found', parseErrors });
+        }
+
+        const result = await importCustomers(customers);
+        res.json({
+            message: `Import complete: ${result.imported} customers imported`,
+            ...result,
+            parseErrors,
+        });
+    } catch (err) {
+        logger.error('Customer upload failed:', err.message);
+        res.status(500).json({ error: 'Import failed: ' + err.message });
+    }
+});
+
+// GET /admin/outreach-stats — View outreach statistics
+app.get('/admin/outreach-stats', adminAuth, async (req, res) => {
+    try {
+        const stats = await getOutreachStats();
+        res.json(stats);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /admin/trigger-outreach — Manually trigger today's batch
+app.post('/admin/trigger-outreach', adminAuth, async (req, res) => {
+    try {
+        res.json({ message: 'Outreach triggered — running in background' });
+        runDailyOutreach(); // Don't await — runs in background
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /admin/customer-count — Quick count check
+app.get('/admin/customer-count', adminAuth, async (req, res) => {
+    try {
+        const count = await getCustomerCount();
+        res.json({ activeCustomers: count });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
 });
@@ -94,3 +181,50 @@ process.on('SIGTERM', () => {
 process.on('unhandledRejection', (err) => {
     logger.error('Unhandled rejection:', err.message);
 });
+
+Hide quoted text
+
+On Thu, 12 Mar, 2026, 3:11 pm Ethical Hacking Rishu, <rishikahar9329239429@gmail.com> wrote:
+# ============================================================
+# GRIH SANSAR — REE Bot Environment Variables
+# Copy this to .env and fill in your actual values
+# ============================================================
+
+# ── Required ──
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key-here
+
+# ── Optional ──
+# WhatsApp group JID where order notifications are sent
+OWNER_GROUP_JID=120363xxxxxx@g.us
+
+# Render hostname (auto-set by Render, but you can set manually)
+RENDER_EXTERNAL_HOSTNAME=your-app.onrender.com
+
+# AI model (defaults to Llama 3.3 70B free tier — best for Hindi+English chat)
+AI_MODEL=meta-llama/llama-3.3-70b-instruct:free
+
+# Fallback model if primary fails (defaults to Llama 4 Maverick free)
+AI_MODEL_FALLBACK=meta-llama/llama-4-maverick:free
+
+# Server port (defaults to 10000)
+PORT=10000
+
+# Enable debug logging
+DEBUG=false
+
+# ── Outreach System ──
+# Enable/disable proactive messaging (set to true when ready)
+OUTREACH_ENABLED=false
+
+# Admin token for /admin/* endpoints (set a random secure string)
+ADMIN_TOKEN=your-secret-admin-token-here
+
+# Daily message limits
+OUTREACH_MIN_DAILY=100
+OUTREACH_MAX_DAILY=200
+
+# Sending hours in IST (24-hour format)
+OUTREACH_START_HOUR=9
+OUTREACH_END_HOUR=20
